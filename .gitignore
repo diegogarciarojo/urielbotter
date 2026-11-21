@@ -1,0 +1,8 @@
+/target/
+/dist/
+/runtime/
+/config.json
+/ignored_channels.json
+/.urielbotter.lock
+/urielbotter-*.tmp
+/.release-cache/

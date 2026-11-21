@@ -1,0 +1,33 @@
+#!/bin/sh
+set -eu
+umask 077
+
+fail() {
+    printf 'Error: %s\n' "$1" >&2
+    exit 1
+}
+
+app_dir=$(CDPATH='' cd -P -- "$(dirname -- "$0")" && pwd)
+cd -- "$app_dir"
+
+if [ -f urielbotter.jar ]; then
+    jar=urielbotter.jar
+    java=./runtime/bin/java
+    [ "$(uname -s)" = Linux ] || fail 'Este paquete requiere Linux.'
+    [ -x "$java" ] && [ -r runtime/architecture ] || fail 'Falta el runtime de Java del paquete. Extrae el ZIP completo con unzip.'
+
+    case "$(uname -m)" in
+        x86_64) machine=amd64 ;;
+        aarch64|arm64) machine=arm64 ;;
+        *) fail 'Esta instancia requiere una arquitectura compatible (x86_64 o aarch64).' ;;
+    esac
+    [ "$(cat runtime/architecture)" = "$machine" ] || fail "Descarga UrielBotter-linux-$machine.zip para esta instancia."
+elif [ -f target/urielbotter.jar ]; then
+    jar=target/urielbotter.jar
+    java=java
+    command -v "$java" >/dev/null 2>&1 || fail 'Instala Java 21 o superior para ejecutar desde el código fuente.'
+else
+    fail 'No se encontró urielbotter.jar. Extrae el ZIP completo o compila el proyecto con mvn package.'
+fi
+
+exec "$java" -jar "$jar" "$@"
