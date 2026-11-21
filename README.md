@@ -28,8 +28,8 @@ Con `Ctrl+B`, seguido de `D`, puedes dejar la sesión de tmux en segundo plano. 
 ## Configurar Discord
 
 1. Instala el bot en el servidor de Discord y activa **Message Content Intent** en **Bot → Privileged Gateway Intents** de su aplicación.
-2. En Discord activa **Modo desarrollador** para copiar IDs al hacer clic derecho sobre un canal o una categoría.
-3. En el primer `./launch` introduce el token del bot, el ID del canal de comandos y el ID de la categoría destino. La entrada del token permanece oculta.
+2. En Discord activa **Modo desarrollador**. Haz clic derecho sobre el canal de comandos y elige **Copiar ID del canal**. Para la categoría destino, haz clic derecho sobre el encabezado que agrupa los canales a los que quieres retransmitir y copia su ID.
+3. En el primer `./launch` introduce el token del bot, el ID del canal de comandos y el ID de la categoría destino.
 4. El bot necesita **Ver canal** en el origen y los destinos y **Enviar mensajes** para retransmitir y responder a los comandos. Para reaccionar con ✅ en el canal de origen, necesita **Añadir reacciones** y **Leer el historial de mensajes**.
 
 La configuración se guarda en `config.json`, con permiso `0600` en Ubuntu. Contiene el token. Para volver al asistente ejecuta `./launch --setup`. Puedes pulsar Enter para conservar los valores existentes. `./launch --setup-only` guarda la configuración y sale antes de conectarse a Discord.

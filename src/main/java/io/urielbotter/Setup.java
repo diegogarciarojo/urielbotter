@@ -1,7 +1,6 @@
 package io.urielbotter;
 
 import java.io.Console;
-import java.util.Arrays;
 
 final class Setup {
     private Setup() {}
@@ -25,21 +24,16 @@ final class Setup {
     private static String readToken(Console console, BotConfig existing) {
         while (true) {
             System.out.println();
-            System.out.println("Token del bot de Discord (entrada oculta)");
+            System.out.println("Token del bot de Discord");
             if (existing != null) {
                 System.out.println("Pulsa Enter para conservar el token guardado.");
             }
 
-            char[] input = console.readPassword("> ");
+            String input = console.readLine("> ");
             if (input == null) {
                 throw cancelled();
             }
-            String token;
-            try {
-                token = new String(input).strip();
-            } finally {
-                Arrays.fill(input, '\0');
-            }
+            String token = input.strip();
             if (token.isEmpty() && existing != null) {
                 return existing.token();
             }
