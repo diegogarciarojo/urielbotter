@@ -6,7 +6,7 @@ import hashlib
 import os
 from pathlib import Path, PurePosixPath
 import posixpath
-from shutil import copyfileobj
+from shutil import copyfile, copyfileobj
 from stat import S_IFDIR, S_IFLNK, S_IFREG
 import tarfile
 from tempfile import TemporaryDirectory
@@ -117,7 +117,9 @@ def main() -> None:
 
     with TemporaryDirectory(dir=args.output_dir) as scratch:
         staging = Path(scratch)
-        sums = []
+        release_jar = staging / "urielbotter.jar"
+        copyfile(jar, release_jar)
+        sums = [f"{sha256(release_jar)}  {release_jar.name}\n"]
         for architecture in RUNTIMES:
             runtime = download_runtime(architecture, args.cache_dir)
             archive = staging / f"UrielBotter-linux-{architecture}.zip"

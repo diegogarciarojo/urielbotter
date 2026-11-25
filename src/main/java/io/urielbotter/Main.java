@@ -22,7 +22,10 @@ public final class Main {
 
     public static void main(String[] args) {
         try {
-            run(args);
+            int status = run(args);
+            if (status != 0) {
+                System.exit(status);
+            }
         } catch (InvalidTokenException e) {
             printError("Discord rechazó el token. Ejecuta ./launch --setup para actualizarlo.");
             System.exit(1);
@@ -35,7 +38,7 @@ public final class Main {
         }
     }
 
-    private static void run(String[] args) throws IOException, InterruptedException {
+    private static int run(String[] args) throws IOException, InterruptedException {
         if (args.length > 1) {
             throw new IllegalArgumentException("Consulta las opciones con ./launch --help.");
         }
@@ -46,7 +49,7 @@ public final class Main {
                     ./launch --setup       Vuelve a solicitar la configuración e inicia el bot.
                     ./launch --setup-only  Guarda la configuración sin conectarse a Discord.
                     """);
-            return;
+            return 0;
         }
         boolean configure = option.equals("--setup") || option.equals("--setup-only");
         if (!option.isEmpty() && !configure) {
@@ -73,8 +76,9 @@ public final class Main {
                 throw new IllegalArgumentException("Revisa ignored_channels.json. Debe ser una lista JSON de IDs de canal.");
             }
             if (!option.equals("--setup-only")) {
-                connect(config, blacklist);
+                return connect(config, blacklist);
             }
+            return 0;
         }
     }
 
@@ -92,7 +96,7 @@ public final class Main {
         }
     }
 
-    private static void connect(BotConfig config, Blacklist blacklist) throws InterruptedException {
+    private static int connect(BotConfig config, Blacklist blacklist) throws InterruptedException {
         System.out.println("[UrielBotter] Conectando con Discord...");
         JDA jda = JDABuilder.createLight(config.token(), GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT)
                 .build();
@@ -108,9 +112,11 @@ public final class Main {
                 throw new IllegalStateException("No se encontró la categoría destino. Revisa su ID y los permisos del bot.");
             }
 
-            jda.addEventListener(new RelayListener(config, blacklist));
+            RelayListener listener = new RelayListener(config, blacklist, ReleaseUpdater.fromLauncher());
+            jda.addEventListener(listener);
             System.out.println("[UrielBotter] Conectado como " + jda.getSelfUser().getName() + ".");
             jda.awaitShutdown();
+            return listener.restartRequested() ? ReleaseUpdater.RESTART_EXIT_CODE : 0;
         } finally {
             if (jda.getStatus() != JDA.Status.SHUTDOWN) {
                 jda.shutdownNow();

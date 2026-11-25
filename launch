@@ -30,4 +30,26 @@ else
     fail 'No se encontró urielbotter.jar. Extrae el ZIP completo o compila el proyecto con mvn package.'
 fi
 
-exec "$java" -jar "$jar" "$@"
+# Keep stdin attached so the setup prompts still work in a terminal.
+exec 3<&0
+child=
+stop() {
+    if [ -n "$child" ]; then
+        kill -TERM "$child" 2>/dev/null || :
+        wait "$child" || :
+    fi
+    exit "$1"
+}
+trap 'stop 130' INT
+trap 'stop 143' TERM
+
+while :; do
+    "$java" -Durielbotter.launcher=true -jar "$jar" "$@" <&3 3<&- &
+    child=$!
+    status=0
+    wait "$child" || status=$?
+    child=
+    # Java returns 75 only after it has installed a verified update.
+    [ "$status" -eq 75 ] || exit "$status"
+    set --
+done

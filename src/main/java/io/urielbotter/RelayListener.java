@@ -4,6 +4,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.concrete.Category;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
@@ -18,10 +23,14 @@ final class RelayListener extends ListenerAdapter {
     private static final Emoji SENT = Emoji.fromUnicode("✅");
     private final BotConfig config;
     private final Blacklist blacklist;
+    private final ReleaseUpdater updater;
+    private final AtomicBoolean updating = new AtomicBoolean();
+    private volatile boolean restartRequested;
 
-    RelayListener(BotConfig config, Blacklist blacklist) {
+    RelayListener(BotConfig config, Blacklist blacklist, ReleaseUpdater updater) {
         this.config = config;
         this.blacklist = blacklist;
+        this.updater = updater;
     }
 
     @Override
@@ -34,11 +43,64 @@ final class RelayListener extends ListenerAdapter {
 
         Message incoming = event.getMessage();
         String content = incoming.getContentRaw();
+        if (content.strip().equalsIgnoreCase("update")) {
+            if (!event.getAuthor().isBot() && !incoming.isWebhookMessage()) {
+                if (event.getMember() != null && event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
+                    update(incoming);
+                } else {
+                    reply(incoming, "Solo un administrador del servidor puede actualizar UrielBotter.");
+                }
+            }
+            return;
+        }
         String[] parts = content.strip().split("\\s+", 3);
         switch (parts[0]) {
             case "add", "delete" -> updateBlacklist(incoming, parts);
             default -> relay(incoming, content);
         }
+    }
+
+    boolean restartRequested() {
+        return restartRequested;
+    }
+
+    private void update(Message incoming) {
+        if (updater == null) {
+            reply(incoming, "Inicia el bot con ./launch para poder actualizarlo desde Discord.");
+            return;
+        }
+        if (!updating.compareAndSet(false, true)) {
+            reply(incoming, "Ya hay una actualización en curso.");
+            return;
+        }
+        reply(incoming, "Buscando actualizaciones de UrielBotter…");
+        Thread.ofVirtual().name("urielbotter-update").start(() -> {
+            try {
+                var installed = updater.installLatest();
+                if (installed.isEmpty()) {
+                    reply(incoming, "UrielBotter ya está actualizado.");
+                    return;
+                }
+                try {
+                    send(incoming.getGuildChannel(), "Instalé " + installed.get() + ". Reiniciando UrielBotter…")
+                            .get(5, TimeUnit.SECONDS);
+                } catch (ExecutionException | TimeoutException e) {
+                    LOG.warn("No se pudo confirmar el aviso de reinicio.", e);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    restartRequested = true;
+                    incoming.getJDA().shutdownNow();
+                }
+            } catch (IOException e) {
+                LOG.warn("No se pudo instalar la actualización.", e);
+                reply(incoming, "No se pudo actualizar UrielBotter. Revisa el registro de la aplicación.");
+            } finally {
+                if (!restartRequested) {
+                    updating.set(false);
+                }
+            }
+        });
     }
 
     private void updateBlacklist(Message incoming, String[] parts) {

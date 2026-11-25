@@ -51,6 +51,18 @@ Al configurar UrielBotter se crea `ignored_channels.json`. `add` agrega el ID, `
 
 Puedes copiar un `ignored_channels.json` del bot anterior a la carpeta de instalación antes de iniciar `./launch`.
 
+## Actualizar desde Discord
+
+Un administrador del servidor puede escribir `update` en el canal de comandos.
+El bot consulta la última release estable de GitHub. Si es más reciente, verifica
+el SHA-256 y la versión del JAR, lo instala y se reinicia con `./launch`. Si ya
+está al día o la descarga falla, sigue ejecutándose. Conserva `config.json`,
+`ignored_channels.json` y el runtime de Java.
+
+Usa `./launch` para iniciar el bot y permite tráfico HTTPS a GitHub. Si vienes
+de la versión 1.0.1 o anterior, detén el bot y reemplaza una vez `launch` y
+`urielbotter.jar` con los archivos nuevos antes de volver a ejecutarlo.
+
 ## Compilar
 
 Usa Java 21 o superior, Maven y Python 3.10 o superior si vas a empaquetar las dos arquitecturas:
@@ -61,5 +73,9 @@ python3 scripts/package_linux.py --cache-dir .release-cache --output-dir dist
 ```
 
 El JAR se genera en `target/urielbotter.jar`. El empaquetador incluye las distribuciones de Eclipse Temurin fijadas en el script y comprueba sus SHA-256.
+
+Al publicar una versión estable, sube también `dist/urielbotter.jar` como
+archivo adjunto de la release. La etiqueta debe ser `v` seguida de la versión
+de `pom.xml` (por ejemplo, `v1.0.2`).
 
 El flujo de instalación y primera ejecución sigue el del launcher de ZenithProxy. [Launcher V3](https://github.com/rfresh2/ZenithProxy/releases/tag/launcher-v3) · [Guía de ZenithProxy](https://wiki.2b2t.vc/Setup/#usage)

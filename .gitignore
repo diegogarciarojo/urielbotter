@@ -5,4 +5,5 @@
 /ignored_channels.json
 /.urielbotter.lock
 /urielbotter-*.tmp
+/.urielbotter-update-*.tmp
 /.release-cache/
