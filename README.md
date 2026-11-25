@@ -51,6 +51,45 @@ Al configurar UrielBotter se crea `ignored_channels.json`. `add` agrega el ID, `
 
 Puedes copiar un `ignored_channels.json` del bot anterior a la carpeta de instalación antes de iniciar `./launch`.
 
+## Coordinar BetterWaking
+
+La coordinación es opcional. Para habilitarla, guarda `better_waking.json` junto a `launch` y reinicia UrielBotter. Conserva `config.json` e `ignored_channels.json` de tu instalación.
+
+```json
+{
+  "enabled": true,
+  "commandPrefix": ".",
+  "targetCoverage": 1,
+  "marginSeconds": 300,
+  "pollSeconds": 120,
+  "proxyBotIds": {
+    "100000000000000001": "200000000000000001",
+    "100000000000000002": "200000000000000002"
+  }
+}
+```
+
+En `proxyBotIds` reemplaza cada clave con el ID del canal principal de una proxy y cada valor con el ID de usuario de **su bot de ZenithProxy**. Usa el mismo prefijo en las proxies gestionadas. `targetCoverage` fija el mínimo para el objetivo de cuentas simultáneamente en el mundo. Una proxy coordinada en operación real puede elevar el objetivo con `betterWaking coverage`. `marginSeconds` adelanta los relevos y `pollSeconds` acepta intervalos de 60 a 240 segundos.
+
+Las proxies deben estar en la categoría destino. Activa **Message Content Intent** en ambas aplicaciones y concede a UrielBotter **Ver canal** y **Enviar mensajes** en los canales gestionados. En cada ZenithProxy, ejecuta `discord ignoreOtherBots off` en su consola y configura BetterWaking con el ID de usuario de **UrielBotter**. Restringe quién puede escribir en los canales de control. [Instalación y comandos de BetterWaking](https://github.com/diegogarciarojo/BetterWaking) · [Intents de Discord](https://docs.discord.com/developers/events/gateway#message-content-intent)
+
+El mismo `add` excluye un canal de futuras rondas y del relay. Una orden ya aceptada puede durar hasta seis minutos. Si quieres detener también el comportamiento autónomo, desactiva BetterWaking en esa proxy. Si `better_waking.json` falta, está desactivado o es inválido, el bot continúa como relay. Las órdenes internas `poll` y `plan` se envían directamente a cada proxy desde el coordinador.
+
+La coordinación necesita salida HTTPS por TCP 443 a `api.2b2t.vc`, además de la conexión habitual a Discord. Si la API falla, las proxies conservan sus colas mientras el relay sigue disponible.
+
+### Actualizar una instalación existente desde código fuente
+
+Compila primero con Java 21 y Maven. Detén el bot anterior con `Ctrl+C` en su sesión tmux y copia solo el JAR sobre el de tu instalación. Los cambios de configuración del coordinador se leen al arrancar.
+
+```bash
+mvn clean verify
+install -m 0644 target/urielbotter.jar "$HOME/UrielBotter/urielbotter.jar"
+cd "$HOME/UrielBotter"
+./launch
+```
+
+Ese destino corresponde a una instalación hecha desde ZIP, con `runtime/` junto a `launch`. En una instalación desde código fuente, compila en esa carpeta y vuelve a ejecutar `./launch`, que toma `target/urielbotter.jar`.
+
 ## Compilar
 
 Usa Java 21 o superior, Maven y Python 3.10 o superior si vas a empaquetar las dos arquitecturas:

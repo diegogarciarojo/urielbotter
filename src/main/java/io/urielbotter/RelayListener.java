@@ -1,10 +1,13 @@
 package io.urielbotter;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.channel.concrete.Category;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
@@ -18,22 +21,35 @@ final class RelayListener extends ListenerAdapter {
     private static final Emoji SENT = Emoji.fromUnicode("✅");
     private final BotConfig config;
     private final Blacklist blacklist;
+    private final BetterWakingCoordinator coordinator;
 
-    RelayListener(BotConfig config, Blacklist blacklist) {
+    RelayListener(BotConfig config, Blacklist blacklist, BetterWakingCoordinator coordinator) {
         this.config = config;
         this.blacklist = blacklist;
+        this.coordinator = coordinator;
     }
 
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
-        if (!event.isFromGuild()
-                || !config.commandChannelId().equals(event.getChannel().getId())
-                || event.getAuthor().equals(event.getJDA().getSelfUser())) {
+        if (!event.isFromGuild() || event.getAuthor().equals(event.getJDA().getSelfUser())) {
             return;
         }
 
         Message incoming = event.getMessage();
         String content = incoming.getContentRaw();
+        if (!config.commandChannelId().equals(event.getChannel().getId())) {
+            if (coordinator != null && event.getAuthor().isBot() && !event.isWebhookMessage()) {
+                List<String> descriptions = Stream.concat(Stream.of(content),
+                                incoming.getEmbeds().stream().map(MessageEmbed::getDescription))
+                        .filter(Objects::nonNull).toList();
+                coordinator.receive(event.getChannel().getId(), event.getAuthor().getId(), true, false, descriptions);
+            }
+            return;
+        }
+        if (BetterWakingWire.isPrivateCommand(content)) {
+            reply(incoming, "BetterWaking reserva poll y plan para la coordinación automática.");
+            return;
+        }
         String[] parts = content.strip().split("\\s+", 3);
         switch (parts[0]) {
             case "add", "delete" -> updateBlacklist(incoming, parts);
@@ -83,17 +99,8 @@ final class RelayListener extends ListenerAdapter {
             return;
         }
 
-        List<CompletableFuture<Boolean>> deliveries = new ArrayList<>();
-        for (var channel : category.getChannels()) {
-            switch (channel.getType()) {
-                case TEXT, NEWS -> {
-                    if (!config.commandChannelId().equals(channel.getId()) && !blacklist.contains(channel.getId())) {
-                        deliveries.add(send((GuildMessageChannel) channel, content));
-                    }
-                }
-                default -> { }
-            }
-        }
+        List<CompletableFuture<Boolean>> deliveries = destinations(category, config, blacklist).stream()
+                .map(channel -> send(channel, content)).toList();
         if (deliveries.isEmpty()) {
             reply(incoming, "La categoría no tiene canales disponibles para la retransmisión.");
             return;
@@ -112,6 +119,13 @@ final class RelayListener extends ListenerAdapter {
                 reply(incoming, "Mensaje enviado a " + sent + " de " + deliveries.size() + " canales.");
             }
         });
+    }
+
+    static List<GuildMessageChannel> destinations(Category category, BotConfig config, Blacklist blacklist) {
+        return category.getChannels().stream()
+                .filter(channel -> channel.getType() == ChannelType.TEXT || channel.getType() == ChannelType.NEWS)
+                .filter(channel -> !config.commandChannelId().equals(channel.getId()) && !blacklist.contains(channel.getId()))
+                .map(GuildMessageChannel.class::cast).toList();
     }
 
     private CompletableFuture<Boolean> send(GuildMessageChannel channel, String content) {

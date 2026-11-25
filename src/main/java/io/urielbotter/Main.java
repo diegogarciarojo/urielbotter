@@ -6,6 +6,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.time.Clock;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
@@ -16,6 +17,7 @@ import net.dv8tion.jda.api.requests.GatewayIntent;
 public final class Main {
     private static final Path CONFIG_FILE = Path.of("config.json");
     private static final Path BLACKLIST_FILE = Path.of("ignored_channels.json");
+    private static final Path COORDINATOR_FILE = Path.of("better_waking.json");
     private static final Path LOCK_FILE = Path.of(".urielbotter.lock");
 
     private Main() {}
@@ -108,14 +110,36 @@ public final class Main {
                 throw new IllegalStateException("No se encontró la categoría destino. Revisa su ID y los permisos del bot.");
             }
 
-            jda.addEventListener(new RelayListener(config, blacklist));
-            System.out.println("[UrielBotter] Conectado como " + jda.getSelfUser().getName() + ".");
-            jda.awaitShutdown();
+            try (var coordinator = coordinator(jda, config, blacklist)) {
+                jda.addEventListener(new RelayListener(config, blacklist, coordinator));
+                if (coordinator != null) {
+                    coordinator.start();
+                }
+                System.out.println("[UrielBotter] Conectado como " + jda.getSelfUser().getName() + ".");
+                jda.awaitShutdown();
+            }
         } finally {
             if (jda.getStatus() != JDA.Status.SHUTDOWN) {
                 jda.shutdownNow();
             }
         }
+    }
+
+    private static BetterWakingCoordinator coordinator(JDA jda, BotConfig config, Blacklist blacklist) {
+        CoordinatorConfig settings;
+        try {
+            settings = CoordinatorConfig.load(COORDINATOR_FILE);
+        } catch (IOException | JsonParseException | IllegalArgumentException | IllegalStateException | ArithmeticException invalid) {
+            printError("better_waking.json no es válido. El relay sigue disponible.");
+            return null;
+        }
+        if (!settings.enabled()) {
+            return null;
+        }
+        Clock clock = Clock.systemUTC();
+        var queueClient = new QueueApiClient(clock);
+        return new BetterWakingCoordinator(settings, clock, new DiscordBetterWakingTransport(jda, config, blacklist),
+                queueClient::snapshot);
     }
 
     private static void awaitDiscord(JDA jda) throws InterruptedException {

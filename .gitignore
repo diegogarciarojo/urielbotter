@@ -2,6 +2,7 @@
 /dist/
 /runtime/
 /config.json
+/better_waking.json
 /ignored_channels.json
 /.urielbotter.lock
 /urielbotter-*.tmp
