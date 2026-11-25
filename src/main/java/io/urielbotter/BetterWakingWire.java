@@ -13,7 +13,8 @@ final class BetterWakingWire {
     private static final Pattern REQUEST_ID = Pattern.compile("[a-f0-9]{32}");
     // UrielBotter is the authenticated Discord author after relaying any human message.
     private static final Pattern PRIVATE_COMMAND = Pattern.compile(
-            "(?isu)^\\S*?betterwaking\\s+(?:poll|plan)(?:\\s.*)?$");
+            "(?isu)^(?:[\\x21-\\x7e]{1,16}?|\\p{Punct}{1,16}[\\x00-\\x20]+)"
+                    + "(?:zenith:)?betterwaking +(?:poll|plan)(?: +.*)?$");
 
     private BetterWakingWire() {}
 

@@ -240,10 +240,17 @@ class BetterWakingDiscordTest {
         message(COMMAND, "99", false, false, "delete " + FIRST);
         assertFalse(blacklist.contains(FIRST));
         discord.delivered.clear();
-        for (String command : List.of(".betterWaking poll 1", "!zenith:BETTERWAKING PLAN 1 2 -")) {
+        for (String command : List.of(".betterWaking poll 1", ". betterWaking plan 1 2 -",
+                ".\tbetterWaking plan 1 2 -", "!zenith:BETTERWAKING PLAN 1 2 -")) {
             message(COMMAND, "99", false, false, command);
             assertEquals(List.of(COMMAND), discord.destinations());
             assertTrue(discord.messageFor(COMMAND).contains("coordinación automática"));
+            discord.delivered.clear();
+        }
+        for (String text : List.of("BetterWaking plan", "Revisemos BetterWaking plan", ".betterWaking\u00A0plan")) {
+            message(COMMAND, "99", false, false, text);
+            assertEquals(List.of(FIRST, SECOND, UNBOUND), discord.destinations());
+            assertEquals(text, discord.messageFor(FIRST));
             discord.delivered.clear();
         }
         message(FIRST, FIRST_BOT, true, false, "Hi from Zenith!");
